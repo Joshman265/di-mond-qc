@@ -1,5 +1,5 @@
-const CACHE='dimond-qc-v10';
-const ASSETS=['./','./index.html','./app.js?v=10','./manifest.webmanifest','./icon.svg'];
+const CACHE='dimond-qc-v11';
+const ASSETS=['./','./index.html','./app.js?v=11','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
@@ -18,7 +18,10 @@ self.addEventListener('activate',event=>{
 });
 
 self.addEventListener('fetch',event=>{
-  if(event.request.url.includes('login.microsoftonline.com') || event.request.url.includes('graph.microsoft.com')){
+  if(event.request.url.includes('login.microsoftonline.com') ||
+     event.request.url.includes('graph.microsoft.com') ||
+     event.request.url.includes('alcdn.msauth.net') ||
+     event.request.url.includes('alcdn.msftauth.net')){
     return;
   }
   event.respondWith(
