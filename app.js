@@ -64,6 +64,7 @@ function newForm(type){
     workOrder:'', boxSerial:'', chassisSerial:'', inspectorInitials:'',
     reviewedWorkOrder:'', reviewedDrawing:'',
     rollupDoorSerial:'', rollupDoorModel:'',
+    tailgateSerial:'', tailgateModel:'',
     initials:{}, notes:{}, comments:'', additionalOptions:'',
     signature:''
   };
@@ -102,8 +103,18 @@ function renderForm(){
                    </label>
                  </div>`
               : '';
+            const tailgateFields = (d.type==='Mounting Bay QC' && sec==='Final Checks' && item==='Tailgate make and serial number recorded')
+              ? `<div class="inline-fields">
+                   <label>Tailgate Serial Number
+                     <input data-field="tailgateSerial" value="${esc(d.tailgateSerial||'')}" placeholder="Enter serial number">
+                   </label>
+                   <label>Tailgate Model
+                     <input data-field="tailgateModel" value="${esc(d.tailgateModel||'')}" placeholder="Enter model">
+                   </label>
+                 </div>`
+              : '';
             return `<div class="qc-row">
-              <div class="qc-text">${esc(item)}${rollupFields}</div>
+              <div class="qc-text">${esc(item)}${rollupFields}${tailgateFields}</div>
               <div class="initial-box">
                 <input maxlength="5" value="${esc((d.initials||{})[key]||'')}" data-initial-key="${esc(key)}" aria-label="Initials">
                 <button type="button" onclick="applyInitial('${jsq(key)}')">Initial</button>
@@ -203,7 +214,10 @@ function showPrintView(d){
         const rollupInfo=(d.type==='Mainline QC' && sec==='Final Check' && item==='Roll-up door serial number/model recorded')
           ? `<div class="pdf-extra"><b>Serial Number:</b> ${esc(d.rollupDoorSerial||'')} &nbsp;&nbsp; <b>Model:</b> ${esc(d.rollupDoorModel||'')}</div>`
           : '';
-        return `<div class="pdf-row"><div>${esc(item)}${rollupInfo}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`;
+        const tailgateInfo=(d.type==='Mounting Bay QC' && sec==='Final Checks' && item==='Tailgate make and serial number recorded')
+          ? `<div class="pdf-extra"><b>Tailgate Serial Number:</b> ${esc(d.tailgateSerial||'')} &nbsp;&nbsp; <b>Tailgate Model:</b> ${esc(d.tailgateModel||'')}</div>`
+          : '';
+        return `<div class="pdf-row"><div>${esc(item)}${rollupInfo}${tailgateInfo}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`;
       }).join('')}
     </section>`).join('')}
     <div class="pdf-note"><b>COMMENTS</b><div>${nl2br(d.comments)}</div></div>
