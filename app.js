@@ -63,14 +63,20 @@ function newForm(type){
     date: new Date().toISOString().slice(0,10),
     workOrder:'', boxSerial:'', chassisSerial:'', inspectorInitials:'',
     reviewedWorkOrder:'', reviewedDrawing:'',
-    rollupDoorSerial:'', rollupDoorModel:'',
-    tailgateSerial:'', tailgateModel:'',
     initials:{}, notes:{}, comments:'', additionalOptions:'',
     signature:''
   };
   state.drafts.push(draft); saveState(); currentId = draft.id; renderForm();
 }
-function openDraft(id){ currentId=id; renderForm(); }
+function openDraft(id){
+  currentId=id;
+  const d=getDraft();
+  if(d && d.type==='Mounting Bay QC' && !String(d.workOrder||'').trim() && String(d.boxSerial||'').trim()){
+    d.workOrder=d.boxSerial;
+    saveState();
+  }
+  renderForm();
+}
 function getDraft(){ return state.drafts.find(d=>d.id===currentId); }
 
 function renderForm(){
@@ -82,9 +88,12 @@ function renderForm(){
       <section class="card header-card">
         <div class="form-grid">
           <label>Date<input type="date" data-field="date" value="${esc(d.date)}"></label>
-          <label>${d.type==='Mainline QC'?'Work Order No.':'Box Serial No.'}<input data-field="${d.type==='Mainline QC'?'workOrder':'boxSerial'}" value="${esc(d.type==='Mainline QC'?d.workOrder:d.boxSerial)}" placeholder="Required"></label>
+          <label>Work Order No.<input data-field="workOrder" value="${esc(d.workOrder || d.boxSerial || '')}" placeholder="Required"></label>
           ${d.type==='Mounting Bay QC'?`<label>Chassis Serial Number<input data-field="chassisSerial" value="${esc(d.chassisSerial)}"></label>`:''}
           <label>Inspector Initials<input data-field="inspectorInitials" value="${esc(d.inspectorInitials)}" maxlength="5" placeholder="e.g. JD"></label>
+          ${d.type==='Mounting Bay QC'?`
+          <label>Reviewed Work Order<input data-field="reviewedWorkOrder" value="${esc(d.reviewedWorkOrder)}" placeholder="Initials / confirmation"></label>
+          <label>Reviewed Drawing<input data-field="reviewedDrawing" value="${esc(d.reviewedDrawing)}" placeholder="Initials / confirmation"></label>`:''}
         </div>
         <p class="hint">Tip: enter Inspector Initials once. Tap <b>Initial</b> beside a completed item to fill them in automatically.</p>
       </section>
@@ -93,28 +102,8 @@ function renderForm(){
           <div class="qc-section-title"><h2>${esc(sec)}</h2><span>INITIALS</span></div>
           ${items.map((item,i)=>{
             const key = sec+'|'+i;
-            const rollupFields = (d.type==='Mainline QC' && sec==='Final Check' && item==='Roll-up door serial number/model recorded')
-              ? `<div class="inline-fields">
-                   <label>Roll-up Door Serial Number
-                     <input data-field="rollupDoorSerial" value="${esc(d.rollupDoorSerial||'')}" placeholder="Enter serial number">
-                   </label>
-                   <label>Roll-up Door Model
-                     <input data-field="rollupDoorModel" value="${esc(d.rollupDoorModel||'')}" placeholder="Enter model">
-                   </label>
-                 </div>`
-              : '';
-            const tailgateFields = (d.type==='Mounting Bay QC' && sec==='Final Checks' && item==='Tailgate make and serial number recorded')
-              ? `<div class="inline-fields">
-                   <label>Tailgate Serial Number
-                     <input data-field="tailgateSerial" value="${esc(d.tailgateSerial||'')}" placeholder="Enter serial number">
-                   </label>
-                   <label>Tailgate Model
-                     <input data-field="tailgateModel" value="${esc(d.tailgateModel||'')}" placeholder="Enter model">
-                   </label>
-                 </div>`
-              : '';
             return `<div class="qc-row">
-              <div class="qc-text">${esc(item)}${rollupFields}${tailgateFields}</div>
+              <div class="qc-text">${esc(item)}</div>
               <div class="initial-box">
                 <input maxlength="5" value="${esc((d.initials||{})[key]||'')}" data-initial-key="${esc(key)}" aria-label="Initials">
                 <button type="button" onclick="applyInitial('${jsq(key)}')">Initial</button>
@@ -173,8 +162,8 @@ function deleteDraft(){
 
 function completeQC(){
   collect(); const d=getDraft();
-  const required = d.type==='Mainline QC' ? d.workOrder.trim() : d.boxSerial.trim();
-  if(!required){ alert(d.type==='Mainline QC'?'Enter the Work Order No. first.':'Enter the Box Serial No. first.'); return; }
+  const required = d.workOrder.trim();
+  if(!required){ alert('Enter the Work Order No. first.'); return; }
   if(!d.signature.trim()){ alert('Enter the Quality Inspector Signature before completing the QC.'); return; }
   const missing=[];
   Object.entries(FORMS[d.type]).forEach(([sec,items])=>{
@@ -205,20 +194,11 @@ function showPrintView(d){
     <button onclick="markFiled()">I Saved It to OneDrive</button>
   </div>
   <article class="pdf-sheet">
-    <div class="pdf-head"><div></div><div class="pdf-logo">DI-MOND</div></div>
-    <div class="pdf-meta"><b>${esc(d.type)}</b><span>Date: ${esc(d.date)}</span><span>${d.type==='Mainline QC'?'Work Order No.: '+esc(d.workOrder):'Box Serial No.: '+esc(d.boxSerial)}</span>${d.chassisSerial?'<span>Chassis Serial: '+esc(d.chassisSerial)+'</span>':''}</div>
+    <div class="pdf-head"><div>${d.type==='Mounting Bay QC'?`<div class="pdf-check">Reviewed Work Order: ${esc(d.reviewedWorkOrder||'')}</div><div class="pdf-check">Reviewed Drawing: ${esc(d.reviewedDrawing||'')}</div>`:''}</div><div class="pdf-logo">DI-MOND</div></div>
+    <div class="pdf-meta"><b>${esc(d.type)}</b><span>Date: ${esc(d.date)}</span><span>Work Order No.: ${esc(d.workOrder || d.boxSerial || '')}</span>${d.chassisSerial?'<span>Chassis Serial: '+esc(d.chassisSerial)+'</span>':''}</div>
     ${Object.entries(sections).map(([sec,items])=>`
       <section class="pdf-section"><div class="pdf-section-title"><b>${esc(sec)}</b><b>INITIALS</b></div>
-      ${items.map((item,i)=>{
-        const key=sec+'|'+i;
-        const rollupInfo=(d.type==='Mainline QC' && sec==='Final Check' && item==='Roll-up door serial number/model recorded')
-          ? `<div class="pdf-extra"><b>Serial Number:</b> ${esc(d.rollupDoorSerial||'')} &nbsp;&nbsp; <b>Model:</b> ${esc(d.rollupDoorModel||'')}</div>`
-          : '';
-        const tailgateInfo=(d.type==='Mounting Bay QC' && sec==='Final Checks' && item==='Tailgate make and serial number recorded')
-          ? `<div class="pdf-extra"><b>Tailgate Serial Number:</b> ${esc(d.tailgateSerial||'')} &nbsp;&nbsp; <b>Tailgate Model:</b> ${esc(d.tailgateModel||'')}</div>`
-          : '';
-        return `<div class="pdf-row"><div>${esc(item)}${rollupInfo}${tailgateInfo}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`;
-      }).join('')}
+      ${items.map((item,i)=>{const key=sec+'|'+i;return `<div class="pdf-row"><div>${esc(item)}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`}).join('')}
     </section>`).join('')}
     <div class="pdf-note"><b>COMMENTS</b><div>${nl2br(d.comments)}</div></div>
     ${d.type==='Mainline QC'?`<div class="pdf-note"><b>ADDITIONAL OPTION</b><div>${nl2br(d.additionalOptions)}</div></div>`:''}
@@ -230,7 +210,7 @@ function nl2br(s=''){ return esc(s).replace(/\n/g,'<br>'); }
 function markFiled(){
   const d=getDraft();
   if(!confirm('Confirm that you manually saved the PDF into the correct Work Order → QC Sheets folder in OneDrive.')) return;
-  state.filed.push({id:d.id,type:d.type,workOrder:d.workOrder,boxSerial:d.boxSerial,filedAt:Date.now()});
+  state.filed.push({id:d.id,type:d.type,workOrder:d.workOrder || d.boxSerial || '',filedAt:Date.now()});
   state.drafts=state.drafts.filter(x=>x.id!==d.id);
   saveState(); showDashboard();
 }
