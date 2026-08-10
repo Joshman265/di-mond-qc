@@ -33,8 +33,13 @@ label{font-weight:750;font-size:13px;color:#333}input,textarea{width:100%;margin
 @media print{body{background:#fff}.no-print{display:none!important}.pdf-sheet{border:0;margin:0;max-width:none;padding:0}.pdf-row{break-inside:avoid}.pdf-section{break-inside:auto}@page{size:auto;margin:0.35in}}
 </style>
 </head>
-<body><div id="app"></div><script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<body><div id="app"></div><script type="text/javascript" src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js"></script>
+<script type="text/javascript">
+if(typeof msal === 'undefined'){
+  document.write('<script type="text/javascript" src="https://alcdn.msftauth.net/browser/2.35.0/js/msal-browser.min.js"><\/script>');
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{});}</script></body></html>
