@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DI-MOND QC">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.webmanifest">
+<title>DI-MOND Quality Control</title>
+<style>
+:root{--red:#e31e24;--ink:#111;--muted:#666;--line:#d8d8d8;--bg:#f4f5f7;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,textarea{font:inherit}.topbar{background:#111;color:#fff;padding:16px max(18px,env(safe-area-inset-right)) 14px max(18px,env(safe-area-inset-left));display:flex;align-items:center;gap:12px}
+.topbar.sticky{position:sticky;top:0;z-index:20}.brand{color:var(--red);font-size:28px;font-weight:900;letter-spacing:1px;line-height:1}.subbrand{font-size:11px;font-weight:800;letter-spacing:2px;margin-top:4px}
+.back,.save-top{background:#252525;color:#fff;border:0;border-radius:10px;padding:10px 14px}.back{font-size:26px;padding:3px 14px}.save-top{margin-left:auto}
+.wrap{max-width:980px;margin:auto;padding:22px}.hero h1{font-size:38px;margin:4px 0}.hero p{color:var(--muted);margin-top:0}.new-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0 32px}
+.big{min-height:54px;border:1px solid #c9c9c9;background:#fff;border-radius:14px;font-weight:800;padding:12px 18px}.primary{background:var(--red)!important;color:white!important;border-color:var(--red)!important}
+.danger-outline{border-color:#b43b3b;color:#9b1c1c}.section-head{display:flex;align-items:center;gap:8px}.section-head h2{font-size:22px}.count{background:#222;color:#fff;border-radius:999px;padding:3px 9px;font-size:12px}
+.empty{background:#fff;border:1px dashed #bbb;border-radius:14px;padding:22px;color:#777}.drafts{display:grid;gap:10px}.draft-card{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:17px}
+.draft-title{font-size:18px;font-weight:850}.draft-meta{font-size:13px;color:#777;margin-top:4px}.chev{font-size:32px;color:#999}.filed{margin-top:34px}.filed-row{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:14px;border-bottom:1px solid #eee}.filed-row span{display:block;color:#777;font-size:12px;margin-top:3px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+label{font-weight:750;font-size:13px;color:#333}input,textarea{width:100%;margin-top:6px;border:1px solid #bbb;border-radius:10px;padding:12px;background:#fff}.hint{font-size:13px;color:#666;margin-bottom:0}
+.qc-section{background:#fff;border:1px solid #aaa;border-radius:14px;overflow:hidden;margin:0 0 16px}.qc-section-title{background:#d4d4d4;display:grid;grid-template-columns:1fr 150px;align-items:center;padding:8px 12px;border-bottom:2px solid #222}.qc-section-title h2{font-size:17px;margin:0}.qc-section-title span{text-align:center;font-size:11px;font-weight:900}
+.qc-row{display:grid;grid-template-columns:1fr 150px;border-bottom:1px solid #bbb;min-height:56px}.qc-row:last-child{border-bottom:0}.qc-text{padding:12px;line-height:1.25}.initial-box{border-left:1px solid #999;padding:7px;display:flex;gap:5px;align-items:center}.initial-box input{margin:0;min-width:0;text-align:center;text-transform:uppercase;padding:9px 5px}.initial-box button{border:0;background:#222;color:white;border-radius:8px;padding:10px 8px;font-size:11px;font-weight:800}
+.block{display:block;margin-bottom:16px}.actions{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin:20px 0 50px}
+.print-actions{position:sticky;top:0;z-index:30;background:#111;color:white;padding:12px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}.print-actions button{border:0;border-radius:9px;padding:11px 14px;font-weight:800}.save-guide{max-width:520px;font-size:12px;line-height:1.35}
+.pdf-sheet{background:white;max-width:900px;margin:20px auto;padding:16px;border:1px solid #aaa}.pdf-head{display:flex;justify-content:space-between;align-items:center;border:2px solid #111;padding:12px}.pdf-logo{color:var(--red);font-size:38px;font-weight:950;letter-spacing:1px}.pdf-check{font-weight:700;margin:5px 0}
+.pdf-meta{display:flex;gap:18px;flex-wrap:wrap;background:#d0d0d0;border:2px solid #111;border-top:0;padding:5px 8px;font-size:12px}.pdf-section{border:2px solid #111;border-top:0}.pdf-section-title{display:grid;grid-template-columns:1fr 90px;background:#ccc;border-bottom:1px solid #111;padding:4px 6px}.pdf-section-title b:last-child{text-align:center}.pdf-row{display:grid;grid-template-columns:1fr 90px;border-bottom:1px solid #111;font-size:11px}.pdf-row:last-child{border-bottom:0}.pdf-row>div{padding:5px 6px}.pdf-init{border-left:1px solid #111;text-align:center;font-weight:800}
+.pdf-note{border:2px solid #111;border-top:0;min-height:95px}.pdf-note>b{display:block;background:#ccc;padding:4px 6px;border-bottom:1px solid #111}.pdf-note>div{padding:8px}.pdf-sign{display:flex;justify-content:space-between;border:2px solid #111;border-top:0;padding:18px 8px}
+@media(max-width:650px){.wrap{padding:14px}.new-grid,.form-grid,.actions{grid-template-columns:1fr}.hero h1{font-size:32px}.qc-section-title,.qc-row{grid-template-columns:1fr 105px}.initial-box{display:block}.initial-box button{width:100%;margin-top:5px}.pdf-sheet{margin:0}.pdf-logo{font-size:28px}}
+@media print{body{background:#fff}.no-print{display:none!important}.pdf-sheet{border:0;margin:0;max-width:none;padding:0}.pdf-row{break-inside:avoid}.pdf-section{break-inside:auto}@page{size:auto;margin:0.35in}}
+</style>
+</head>
+<body><div id="app"></div><script src="app.js"></script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{});}</script></body></html>
