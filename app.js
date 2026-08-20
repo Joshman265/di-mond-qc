@@ -207,6 +207,7 @@ function loadState(){
 function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function uid(){ return 'qc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
 function esc(s=''){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+function formatInspectionItem(s=''){ return esc(s).replace(/;\s*/g,';<br>'); }
 
 function showDashboard(){
   currentId = null;
@@ -322,7 +323,7 @@ function renderForm(){
                  </div>`
               : '';
             return `<div class="qc-row">
-              <div class="qc-text">${esc(item)}${rollupFields}${tailgateFields}</div>
+              <div class="qc-text">${formatInspectionItem(item)}${rollupFields}${tailgateFields}</div>
               <div class="initial-box">
                 <input maxlength="5" value="${esc((d.initials||{})[key]||'')}" data-initial-key="${esc(key)}" aria-label="Initials">
                 <button type="button" onclick="applyInitial('${jsq(key)}')">Initial</button>
@@ -427,7 +428,7 @@ function showPrintView(d){
         const tailgateInfo=(d.type==='Mounting Bay QC' && sec==='Final Checks' && item==='Tailgate make and serial number recorded')
           ? `<div class="pdf-extra"><b>Tailgate Serial Number:</b> ${esc(d.tailgateSerial||'')} &nbsp;&nbsp; <b>Tailgate Model:</b> ${esc(d.tailgateModel||'')}</div>`
           : '';
-        return `<div class="pdf-row"><div>${esc(item)}${rollupInfo}${tailgateInfo}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`;
+        return `<div class="pdf-row"><div>${formatInspectionItem(item)}${rollupInfo}${tailgateInfo}</div><div class="pdf-init">${esc((d.initials||{})[key]||'')}</div></div>`;
       }).join('')}
     </section>`).join('')}
     <div class="pdf-note"><b>COMMENTS</b><div>${nl2br(d.comments)}</div></div>

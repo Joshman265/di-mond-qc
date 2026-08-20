@@ -1,5 +1,5 @@
-const CACHE='dimond-qc-v11';
-const ASSETS=['./','./index.html','./app.js?v=11','./manifest.webmanifest','./icon.svg'];
+const CACHE='dimond-qc-v12';
+const ASSETS=['./','./index.html','./app.js?v=12','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
