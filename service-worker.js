@@ -1,4 +1,4 @@
-const CACHE='dimond-qc-v12';
+const CACHE='dimond-qc-v13';
 const ASSETS=['./','./index.html','./app.js?v=12','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',event=>{

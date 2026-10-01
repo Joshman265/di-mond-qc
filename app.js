@@ -4,80 +4,10 @@ const STORAGE_KEY = 'dimond-qc-v1';
 let state = loadState();
 let currentId = null;
 
-const MS_CLIENT_ID = '12c2b348-c082-4295-9aa1-f683566f12d7';
-const MS_TENANT_ID = 'dd81b075-ba17-4b8c-9c8e-9b10b07a1445';
-const ONEDRIVE_OWNER = 'josh@di-mond.com';
-const MS_SCOPES = ['User.Read','Files.ReadWrite'];
-const PENDING_SUBMIT_KEY = 'dimond-qc-pending-submit';
-
-let msalApp = null;
-let msAccount = null;
-
-async function initMicrosoft(){
-  if(!window.msal) return;
-  msalApp = new msal.PublicClientApplication({
-    auth:{
-      clientId:MS_CLIENT_ID,
-      authority:`https://login.microsoftonline.com/${MS_TENANT_ID}`,
-      redirectUri:'https://joshman265.github.io/di-mond-qc/'
-    },
-    cache:{cacheLocation:'localStorage'}
-  });
-  if(typeof msalApp.initialize === 'function') await msalApp.initialize();
-  try{
-    const r = await msalApp.handleRedirectPromise();
-    if(r && r.account){ msAccount=r.account; msalApp.setActiveAccount(msAccount); }
-  }catch(e){ console.error('Microsoft redirect error',e); }
-  if(!msAccount){
-    const accounts=msalApp.getAllAccounts();
-    const josh=accounts.find(a=>String(a.username||'').toLowerCase()===ONEDRIVE_OWNER);
-    msAccount=josh || accounts[0] || null;
-    if(msAccount) msalApp.setActiveAccount(msAccount);
-  }
-}
-
-function microsoftConnected(){
-  return !!(msAccount && String(msAccount.username||'').toLowerCase()===ONEDRIVE_OWNER);
-}
-
-async function connectOneDrive(){
-  if(!msalApp){ alert('Microsoft sign-in is not available yet. Check your internet connection and reopen the app.'); return; }
-  localStorage.removeItem(PENDING_SUBMIT_KEY);
-  await msalApp.loginRedirect({scopes:MS_SCOPES,prompt:'select_account',loginHint:ONEDRIVE_OWNER});
-}
-
-async function disconnectOneDrive(){
-  if(!msalApp || !msAccount) return;
-  await msalApp.logoutRedirect({account:msAccount,postLogoutRedirectUri:'https://joshman265.github.io/di-mond-qc/'});
-}
-
-async function getGraphToken(){
-  if(!microsoftConnected()) throw new Error('ONE_DRIVE_NOT_CONNECTED');
-  try{
-    const r=await msalApp.acquireTokenSilent({scopes:MS_SCOPES,account:msAccount});
-    return r.accessToken;
-  }catch(e){
-    const d=getDraft();
-    if(d) localStorage.setItem(PENDING_SUBMIT_KEY,d.id);
-    await msalApp.acquireTokenRedirect({scopes:MS_SCOPES,account:msAccount});
-    throw new Error('REDIRECTING_FOR_MICROSOFT');
-  }
-}
-
-async function graphRequest(url,options={}){
-  const token=await getGraphToken();
-  const headers=new Headers(options.headers||{});
-  headers.set('Authorization','Bearer '+token);
-  const res=await fetch(url,{...options,headers});
-  return res;
-}
-
+let preparedPdf = null;
+let savingPdf = false;
 function cleanFilePart(s){
   return String(s||'').replace(/[\\/:*?"<>|#%]/g,'-').replace(/\s+/g,' ').trim();
-}
-
-function encodeDrivePath(parts){
-  return parts.map(p=>encodeURIComponent(String(p))).join('/');
 }
 
 function qcFileName(d){
@@ -108,97 +38,58 @@ async function createPdfBlob(){
   return pdf.output('blob');
 }
 
-async function findUploadFolder(d){
-  const wo=String(d.workOrder||d.boxSerial||'').trim();
-  const targetParts=['Di-Mond Reporting','Work Order',wo,'QC Sheets'];
-  const targetUrl='https://graph.microsoft.com/v1.0/me/drive/root:/'+encodeDrivePath(targetParts);
-  const target=await graphRequest(targetUrl);
-  if(target.ok) return {parts:targetParts,lost:false};
-  if(target.status!==404){
-    const txt=await target.text();
-    throw new Error(`OneDrive folder check failed (${target.status}). ${txt.slice(0,180)}`);
-  }
-
-  const lostParts=['Di-Mond Reporting','Lost QC'];
-  const lostUrl='https://graph.microsoft.com/v1.0/me/drive/root:/'+encodeDrivePath(lostParts);
-  const lost=await graphRequest(lostUrl);
-  if(!lost.ok){
-    const txt=await lost.text();
-    throw new Error(`Lost QC folder could not be opened (${lost.status}). ${txt.slice(0,180)}`);
-  }
-  return {parts:lostParts,lost:true};
-}
-
-async function uploadPdfToOneDrive(d,blob){
-  const folder=await findUploadFolder(d);
-  const name=qcFileName(d);
-  const fileParts=[...folder.parts,name];
-  const url='https://graph.microsoft.com/v1.0/me/drive/root:/'+encodeDrivePath(fileParts)+':/content';
-  const res=await graphRequest(url,{method:'PUT',headers:{'Content-Type':'application/pdf'},body:blob});
-  if(!res.ok){
-    const txt=await res.text();
-    throw new Error(`PDF upload failed (${res.status}). ${txt.slice(0,220)}`);
-  }
-  const item=await res.json();
-  return {folder,name,item,lost:folder.lost};
-}
-
 function setSubmitStatus(text,isError=false){
   const el=document.querySelector('#submit-status');
   if(el){el.textContent=text;el.className=isError?'submit-status error':'submit-status';}
 }
 
-async function submitCurrentQCToOneDrive(){
-  const d=getDraft();
-  if(!d) return;
-
-  if(!microsoftConnected()){
-    localStorage.setItem(PENDING_SUBMIT_KEY,d.id);
-    const wrong=msAccount && msAccount.username ? ` Microsoft is currently signed in as ${msAccount.username}.` : '';
-    if(confirm(`OneDrive must be connected as ${ONEDRIVE_OWNER}.${wrong}\n\nConnect now? Your QC will stay saved while Microsoft signs in.`)){
-      await connectOneDrive();
-    }
-    return;
-  }
-
+async function prepareManualPdf(d){
+  preparedPdf=null;
+  const button=document.querySelector('#save-pdf');
+  button.disabled=true;
+  setSubmitStatus('Preparing PDF…');
   try{
-    setSubmitStatus('Creating PDF…');
     const blob=await createPdfBlob();
-    setSubmitStatus('Finding the matching Work Order folder in OneDrive…');
-    const result=await uploadPdfToOneDrive(d,blob);
-
-    const savedPath=result.folder.parts.join(' → ')+' → '+result.name;
-    state.filed.push({
-      id:d.id,type:d.type,workOrder:d.workOrder||d.boxSerial||'',
-      filedAt:Date.now(),savedPath,webUrl:result.item.webUrl||'',lost:result.lost
-    });
-    state.drafts=state.drafts.filter(x=>x.id!==d.id);
-    saveState();
-    localStorage.removeItem(PENDING_SUBMIT_KEY);
-
-    alert(result.lost
-      ? `QC submitted successfully.\n\nNo exact Work Order folder was found, so it was safely saved to:\nDi-Mond Reporting → Lost QC\n\nFile: ${result.name}`
-      : `QC submitted successfully to OneDrive.\n\n${savedPath}`);
-    showDashboard();
+    if(getDraft()!==d || !document.querySelector('#save-pdf')) return;
+    preparedPdf={id:d.id,blob,name:qcFileName(d)};
+    button.disabled=false;
+    setSubmitStatus('PDF ready. Choose your OneDrive folder when saving.');
   }catch(e){
-    if(String(e.message)==='REDIRECTING_FOR_MICROSOFT') return;
-    console.error(e);
-    setSubmitStatus('Upload failed: '+e.message,true);
-    alert('The QC was NOT removed from Incomplete QC.\n\n'+e.message+'\n\nYou can try Submit to OneDrive again or use Print / Save PDF as a backup.');
+    setSubmitStatus('PDF preparation failed. Use Print / Save PDF, or go back and try again.',true);
   }
 }
 
-async function resumePendingSubmission(){
-  const id=localStorage.getItem(PENDING_SUBMIT_KEY);
-  if(!id || !microsoftConnected()) return false;
-  const d=state.drafts.find(x=>x.id===id);
-  if(!d){localStorage.removeItem(PENDING_SUBMIT_KEY);return false;}
-  currentId=id;
-  showPrintView(d);
-  setTimeout(()=>submitCurrentQCToOneDrive(),250);
-  return true;
+async function saveCompletedPdf(){
+  const d=getDraft();
+  if(!d || !preparedPdf || preparedPdf.id!==d.id || savingPdf) return;
+  const pdf=preparedPdf;
+  savingPdf=true;
+  try{
+    if(typeof window.showSaveFilePicker==='function'){
+      const handle=await window.showSaveFilePicker({suggestedName:pdf.name,
+        types:[{description:'QC PDF',accept:{'application/pdf':['.pdf']}}]});
+      const writable=await handle.createWritable();
+      await writable.write(pdf.blob);
+      await writable.close();
+      setSubmitStatus('PDF saved. If you chose OneDrive, click “I Saved It to OneDrive”.');
+    }else{
+      const file=new File([pdf.blob],pdf.name,{type:'application/pdf'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'Completed QC'});
+        setSubmitStatus('After saving to OneDrive through Save to Files, click “I Saved It to OneDrive”.');
+      }else{
+        const url=URL.createObjectURL(pdf.blob);
+        const link=document.createElement('a');
+        link.href=url;link.download=pdf.name;document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+        setSubmitStatus('PDF downloaded. Move or upload it to your chosen OneDrive folder, then confirm below.');
+      }
+    }
+  }catch(e){
+    if(e.name==='AbortError') setSubmitStatus('Save cancelled. Your QC is still in Incomplete QC.');
+    else setSubmitStatus('Save failed: '+e.message+'. Your QC remains in Incomplete QC.',true);
+  }finally{savingPdf=false;}
 }
-
 
 function loadState(){
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {drafts:[], filed:[]}; }
@@ -217,10 +108,6 @@ function showDashboard(){
       <section class="hero">
         <h1>Quality Control</h1>
         <p>Start a new inspection or continue an unfinished QC.</p>
-        <div class="cloud-card">
-          <div><b>OneDrive Connection</b><span>${microsoftConnected()?'Connected as '+esc(msAccount.username):'Not connected — connect as '+ONEDRIVE_OWNER}</span></div>
-          <button class="${microsoftConnected()?'':'primary'}" onclick="${microsoftConnected()?'disconnectOneDrive()':'connectOneDrive()'}">${microsoftConnected()?'Disconnect':'Connect OneDrive'}</button>
-        </div>
         <div class="new-grid">
           <button class="big primary" onclick="newForm('Mainline QC')">New Mainline QC</button>
           <button class="big" onclick="newForm('Mounting Bay QC')">New Mounting Bay QC</button>
@@ -402,7 +289,7 @@ function completeQC(){
     return;
   }
   showPrintView(d);
-  setTimeout(()=>submitCurrentQCToOneDrive(),200);
+
 }
 
 function showPrintView(d){
@@ -410,9 +297,10 @@ function showPrintView(d){
   document.querySelector('#app').innerHTML=`
   <div class="print-actions no-print">
     <button onclick="renderForm()">Back to QC</button>
-    <div class="save-guide"><b>Automatic filing:</b> Submit to OneDrive will file this QC by Work Order. If no exact Work Order folder is found, it goes to Lost QC.</div>
+    <div class="save-guide"><b>Manual saving:</b> Choose Save PDF and select a OneDrive folder on your computer. On iPad, choose Share → Save to Files → OneDrive. If the PDF downloads, upload it to your chosen OneDrive folder. Confirm below only after saving.</div>
     <button onclick="window.print()">Print / Save PDF</button>
-    <button class="primary" onclick="submitCurrentQCToOneDrive()">Submit to OneDrive</button>
+    <button id="save-pdf" class="primary" disabled onclick="saveCompletedPdf()">Save PDF — Choose Folder</button>
+    <button onclick="markFiled()">I Saved It to OneDrive</button>
     <div id="submit-status" class="submit-status"></div>
   </div>
   <article class="pdf-sheet">
@@ -435,19 +323,20 @@ function showPrintView(d){
     ${d.type==='Mainline QC'?`<div class="pdf-note"><b>ADDITIONAL OPTION</b><div>${nl2br(d.additionalOptions)}</div></div>`:''}
     <div class="pdf-sign"><span><b>Quality Inspector Signature:</b> ${esc(d.signature)}</span><span><b>Date:</b> ${esc(d.date)}</span></div>
   </article>`;
+  prepareManualPdf(d);
 }
 function nl2br(s=''){ return esc(s).replace(/\n/g,'<br>'); }
 
 function markFiled(){
   const d=getDraft();
-  if(!confirm('Confirm that you manually saved the PDF into the correct Work Order → QC Sheets folder in OneDrive.')) return;
+  if(!d) return;
+  if(!confirm('Have you saved this completed PDF in your chosen OneDrive folder? Confirming removes it from Incomplete QC.')) return;
   state.filed.push({id:d.id,type:d.type,workOrder:d.workOrder,boxSerial:d.boxSerial,filedAt:Date.now()});
   state.drafts=state.drafts.filter(x=>x.id!==d.id);
   saveState(); showDashboard();
 }
 
-window.addEventListener('load',async()=>{
-  await initMicrosoft();
+window.addEventListener('load',()=>{
+  localStorage.removeItem('dimond-qc-pending-submit');
   showDashboard();
-  await resumePendingSubmission();
 });

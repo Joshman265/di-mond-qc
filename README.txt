@@ -7,9 +7,12 @@ WHAT THIS VERSION DOES
 - Inspector enters their initials once and can tap Initial beside completed items.
 - Incomplete QC sheets are saved locally on the iPad and appear on the Incomplete QC screen.
 - Complete QC creates a print-ready final document.
-- On iPad, use Print / Save PDF, open the print preview, Share, then Save to Files.
+- Click Save PDF — Choose Folder. On supported desktop browsers, choose a synced OneDrive folder.
+- On iPad, use Share → Save to Files → OneDrive. Enable OneDrive in Files first if needed.
+- If sharing is unavailable, upload the downloaded PDF to your chosen OneDrive folder.
+- Print / Save PDF remains available as a backup.
 - The inspector manually chooses:
-  OneDrive → Di-Mond Reporting → Work Order → [corresponding work order] → QC Sheets.
+  Any desired folder in OneDrive. No automatic Work Order or Lost QC uploads occur.
 - After saving to OneDrive, tap “I Saved It to OneDrive” to remove the QC from Incomplete.
 
 IMPORTANT
@@ -25,3 +28,10 @@ TEST ON WINDOWS
 DATA
 Incomplete QC data is stored in the browser on the individual iPad. Do not clear Safari website data
 until the QC has been completed and saved to OneDrive.
+
+UPDATE THE LIVE GITHUB SITE
+1. In GitHub, open joshman265/di-mond-qc.
+2. Choose Add file → Upload files.
+3. Extract this ZIP and upload the files inside di-mond-qc-main to the repository root.
+4. Commit changes, wait for GitHub Pages deployment, then reopen/refresh the app.
+5. Complete a test QC, save it into your OneDrive folder, and confirm it is there before marking it filed.
