@@ -31,9 +31,14 @@ label{font-weight:750;font-size:13px;color:#333}input,textarea{width:100%;margin
 .pdf-note{border:2px solid #111;border-top:0;min-height:95px}.pdf-note>b{display:block;background:#ccc;padding:4px 6px;border-bottom:1px solid #111}.pdf-note>div{padding:8px}.pdf-sign{display:flex;justify-content:space-between;border:2px solid #111;border-top:0;padding:18px 8px}
 @media(max-width:650px){.wrap{padding:14px}.new-grid,.form-grid,.actions,.inline-fields{grid-template-columns:1fr}.hero h1{font-size:32px}.qc-section-title,.qc-row{grid-template-columns:1fr 105px}.initial-box{display:block}.initial-box button{width:100%;margin-top:5px}.pdf-sheet{margin:0}.pdf-logo{font-size:28px}}
 @media print{body{background:#fff}.no-print{display:none!important}.pdf-sheet{border:0;margin:0;max-width:none;padding:0}.pdf-row{break-inside:avoid}.pdf-section{break-inside:auto}@page{size:auto;margin:0.35in}}
+
+.drive-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+.drive-dialog{background:#fff;color:#111;border-radius:16px;width:min(680px,100%);max-height:90dvh;overflow:auto;padding:22px}.drive-dialog h2{margin:0 0 8px}.drive-dialog p{overflow-wrap:anywhere}.drive-nav{display:flex;gap:12px;align-items:center;margin-bottom:12px}.drive-nav b{overflow-wrap:anywhere;min-width:0}.drive-dialog button{border:1px solid #bbb;background:#fff;border-radius:10px;padding:12px;font-weight:750}.drive-items{height:240px;overflow:auto;border:1px solid #ccc;border-radius:10px;padding:8px;margin-bottom:16px}.drive-items button{display:block;width:100%;text-align:left;margin-bottom:6px;overflow-wrap:anywhere}.drive-buttons{display:flex;gap:12px;justify-content:flex-end}.drive-dialog button:disabled,button:disabled{opacity:.5}#drive-message{font-size:14px;min-height:24px}body:has(.drive-overlay){overflow:hidden}
 </style>
 </head>
 <body><div id="app"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="msal-browser.min.js?v=16"></script>
+<script src="onedrive.js?v=16"></script>
+<script src="app.js?v=16"></script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{});}</script></body></html>

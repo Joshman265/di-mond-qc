@@ -5,6 +5,7 @@ let state = loadState();
 let currentId = null;
 
 let preparedPdf = null;
+let pdfGeneration = 0;
 let savingPdf = false;
 function cleanFilePart(s){
   return String(s||'').replace(/[\\/:*?"<>|#%]/g,'-').replace(/\s+/g,' ').trim();
@@ -43,47 +44,26 @@ function setSubmitStatus(text,isError=false){
   if(el){el.textContent=text;el.className=isError?'submit-status error':'submit-status';}
 }
 
-async function prepareManualPdf(d){
+async function prepareManualPdf(d,openPicker=false){
+  const generation=++pdfGeneration;
   preparedPdf=null;
   const button=document.querySelector('#save-pdf');
   button.disabled=true;
   setSubmitStatus('Preparing PDF…');
   try{
     const blob=await createPdfBlob();
-    if(getDraft()!==d || !document.querySelector('#save-pdf')) return;
+    if(generation!==pdfGeneration || getDraft()!==d || document.querySelector('#save-pdf')!==button) return;
     preparedPdf={id:d.id,blob,name:qcFileName(d)};
     button.disabled=false;
     setSubmitStatus('PDF ready. Tap Save to OneDrive to choose your folder.');
+    if(openPicker)await openOneDrivePicker();
   }catch(e){
     setSubmitStatus('PDF preparation failed. Save as Incomplete, then reopen the sheet and try again while online.',true);
   }
 }
 
 async function saveCompletedPdf(){
-  const d=getDraft();
-  if(!d || !preparedPdf || preparedPdf.id!==d.id || savingPdf) return;
-  const pdf=preparedPdf;
-  savingPdf=true;
-  try{
-    const file=new File([pdf.blob],pdf.name,{type:'application/pdf'});
-    if(typeof navigator.share==='function' && typeof navigator.canShare==='function' && navigator.canShare({files:[file]})){
-      // The PDF is prepared before this tap so iPad user activation is preserved.
-      await navigator.share({files:[file],title:'Completed QC'});
-      markFiled();
-    }else if(typeof window.showSaveFilePicker==='function'){
-      const handle=await window.showSaveFilePicker({suggestedName:pdf.name,
-        types:[{description:'QC PDF',accept:{'application/pdf':['.pdf']}}]});
-      const writable=await handle.createWritable();
-      await writable.write(pdf.blob);
-      await writable.close();
-      markFiled();
-    }else{
-      setSubmitStatus('File sharing is unavailable. Open this website in an updated Safari browser and try Save to OneDrive again. Your QC remains in Incomplete QC.',true);
-    }
-  }catch(e){
-    if(e.name==='AbortError') setSubmitStatus('Save cancelled. Your QC is still in Incomplete QC.');
-    else setSubmitStatus('Could not open saving: '+e.message+'. Tap Save to OneDrive to try again. Your QC remains in Incomplete QC.',true);
-  }finally{savingPdf=false;}
+  await openOneDrivePicker();
 }
 
 function loadState(){
@@ -100,6 +80,7 @@ function showDashboard(){
   document.querySelector('#app').innerHTML = `
     <header class="topbar"><div class="brand">DI-MOND</div><div class="subbrand">QUALITY CONTROL</div></header>
     <main class="wrap">
+      ${driveConnectionHtml()}
       <section class="hero">
         <h1>Quality Control</h1>
         <p>Start a new inspection or continue an unfinished QC.</p>
@@ -288,17 +269,17 @@ function completeQC(){
     if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>target.focus(),350); }
     return;
   }
-  showPrintView(d);
+  showPrintView(d,true);
 
 }
 
-function showPrintView(d){
+function showPrintView(d,openPicker=false){
   const sections=FORMS[d.type];
   document.querySelector('#app').innerHTML=`
   <div class="print-actions no-print">
     <button onclick="saveIncomplete(false)">Save as Incomplete</button>
     <button id="save-pdf" class="primary" disabled onclick="saveCompletedPdf()">Save to OneDrive</button>
-    <div class="save-guide">Tap <b>Save to OneDrive</b>, then <b>Save to Files → OneDrive</b>. Choose the folder and filename, then tap Save.</div>
+    <div class="save-guide">Choose your OneDrive folder and filename. The QC is filed only after the PDF uploads successfully.</div>
     <div id="submit-status" class="submit-status"></div>
   </div>
   <article class="pdf-sheet">
@@ -321,20 +302,19 @@ function showPrintView(d){
     ${d.type==='Mainline QC'?`<div class="pdf-note"><b>ADDITIONAL OPTION</b><div>${nl2br(d.additionalOptions)}</div></div>`:''}
     <div class="pdf-sign"><span><b>Quality Inspector Signature:</b> ${esc(d.signature)}</span><span><b>Date:</b> ${esc(d.date)}</span></div>
   </article>`;
-  prepareManualPdf(d);
+  prepareManualPdf(d,openPicker);
 }
 function nl2br(s=''){ return esc(s).replace(/\n/g,'<br>'); }
 
-function markFiled(){
-  const d=getDraft();
-  if(!d) return;
-  if(!confirm('Have you saved this completed PDF in your chosen OneDrive folder? Confirming removes it from Incomplete QC.')) return;
-  state.filed.push({id:d.id,type:d.type,workOrder:d.workOrder,boxSerial:d.boxSerial,filedAt:Date.now()});
-  state.drafts=state.drafts.filter(x=>x.id!==d.id);
-  saveState(); showDashboard();
-}
-
-window.addEventListener('load',()=>{
+window.addEventListener('load',async()=>{
   localStorage.removeItem('dimond-qc-pending-submit');
+  driveReady=initializeOneDrive();
+  await driveReady;
   showDashboard();
+  const resumeId=sessionStorage.getItem(DRIVE_RESUME_KEY);
+  if(resumeId&&driveAccount&&!driveInitError){
+    const draft=state.drafts.find(d=>d.id===resumeId);
+    if(draft){currentId=resumeId;showPrintView(draft,true);}
+    else sessionStorage.removeItem(DRIVE_RESUME_KEY);
+  }
 });

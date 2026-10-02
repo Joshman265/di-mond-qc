@@ -1,13 +1,17 @@
-DI-MOND QC — VERSION 15
+DI-MOND QC — VERSION 16 — DIRECT ONEDRIVE SAVING
 
-TWO SAVE OPTIONS
-1. Save as Incomplete: keeps the sheet on this iPad under Incomplete QC.
-2. Save to OneDrive: checks the completed QC and prepares a PDF preview. Tap Save to OneDrive on the preview to open the iPad sharing menu. Choose Save to Files → OneDrive, select your folder and filename, and tap Save.
+Upload ALL files inside di-mond-qc-main to your GitHub repository root, including onedrive.js and msal-browser.min.js. Commit and wait for GitHub Pages deployment.
 
-When the sharing menu closes, confirm whether you saved the PDF to OneDrive. Only confirmation removes it from Incomplete QC. Cancelling keeps the sheet on the iPad.
+Open https://joshman265.github.io/di-mond-qc/ on each iPad. Tap Connect OneDrive and sign in with that employee's company Microsoft account. Allow the requested file access, if company policy permits. Microsoft may request administrator approval; a company administrator must approve if it does. The app registration already uses SPA authentication and the company's tenant.
 
-If OneDrive is missing, install and sign into OneDrive, then enable it in Files → Browse → More (…) → Edit.
+SAVE OPTIONS
+1. Save as Incomplete keeps the QC on the current iPad under Incomplete QC.
+2. Save to OneDrive validates the QC, prepares the PDF, and opens a folder chooser inside the QC app. Browse the shared folder, choose a filename, and tap Save here. Select an existing PDF to use its filename; replacing it requires confirmation. New filename conflicts fail instead of silently overwriting.
 
-UPDATE GITHUB
-Extract the ZIP. Upload the files inside di-mond-qc-main into the repository root and commit. Wait for deployment, then close and reopen the app. If needed, reload the website in Safari while online before reopening the Home Screen app.
-Do not clear website data: it stores incomplete QC sheets.
+A successful upload files the QC automatically. A cancelled or failed upload keeps the QC in Incomplete QC. Keep the app open while uploading. If a network failure occurs, check OneDrive before retrying because the server may have received the PDF.
+
+Each employee needs edit access to the shared folder. The app uses the employee's own Microsoft permissions. Connect both iPads separately. Change account is available on the home screen. No client secret is required or included.
+
+Incomplete sheets are local to each iPad. Do not clear website data. Sign-in persists subject to Microsoft session policy. After updating, close and reopen the app; if the old version appears, refresh the website in Safari while online, then reopen the Home Screen app.
+
+Verification: code and mocked Microsoft responses can be checked locally. Real Microsoft sign-in, company consent policy, shared-folder access, and uploading require testing on the live HTTPS website with your account.
