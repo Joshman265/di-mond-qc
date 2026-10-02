@@ -53,9 +53,9 @@ async function prepareManualPdf(d){
     if(getDraft()!==d || !document.querySelector('#save-pdf')) return;
     preparedPdf={id:d.id,blob,name:qcFileName(d)};
     button.disabled=false;
-    setSubmitStatus('PDF ready. Choose your OneDrive folder when saving.');
+    setSubmitStatus('PDF ready. Tap Save to OneDrive to choose your folder.');
   }catch(e){
-    setSubmitStatus('PDF preparation failed. Use Print / Save PDF, or go back and try again.',true);
+    setSubmitStatus('PDF preparation failed. Save as Incomplete, then reopen the sheet and try again while online.',true);
   }
 }
 
@@ -65,29 +65,24 @@ async function saveCompletedPdf(){
   const pdf=preparedPdf;
   savingPdf=true;
   try{
-    if(typeof window.showSaveFilePicker==='function'){
+    const file=new File([pdf.blob],pdf.name,{type:'application/pdf'});
+    if(typeof navigator.share==='function' && typeof navigator.canShare==='function' && navigator.canShare({files:[file]})){
+      // The PDF is prepared before this tap so iPad user activation is preserved.
+      await navigator.share({files:[file],title:'Completed QC'});
+      markFiled();
+    }else if(typeof window.showSaveFilePicker==='function'){
       const handle=await window.showSaveFilePicker({suggestedName:pdf.name,
         types:[{description:'QC PDF',accept:{'application/pdf':['.pdf']}}]});
       const writable=await handle.createWritable();
       await writable.write(pdf.blob);
       await writable.close();
-      setSubmitStatus('PDF saved. If you chose OneDrive, click “I Saved It to OneDrive”.');
+      markFiled();
     }else{
-      const file=new File([pdf.blob],pdf.name,{type:'application/pdf'});
-      if(navigator.canShare && navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Completed QC'});
-        setSubmitStatus('After saving to OneDrive through Save to Files, click “I Saved It to OneDrive”.');
-      }else{
-        const url=URL.createObjectURL(pdf.blob);
-        const link=document.createElement('a');
-        link.href=url;link.download=pdf.name;document.body.appendChild(link);link.click();link.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),60000);
-        setSubmitStatus('PDF downloaded. Move or upload it to your chosen OneDrive folder, then confirm below.');
-      }
+      setSubmitStatus('File sharing is unavailable. Open this website in an updated Safari browser and try Save to OneDrive again. Your QC remains in Incomplete QC.',true);
     }
   }catch(e){
     if(e.name==='AbortError') setSubmitStatus('Save cancelled. Your QC is still in Incomplete QC.');
-    else setSubmitStatus('Save failed: '+e.message+'. Your QC remains in Incomplete QC.',true);
+    else setSubmitStatus('Could not open saving: '+e.message+'. Tap Save to OneDrive to try again. Your QC remains in Incomplete QC.',true);
   }finally{savingPdf=false;}
 }
 
@@ -173,7 +168,7 @@ function renderForm(){
   const d=getDraft(); if(!d){showDashboard();return;}
   const sections = FORMS[d.type];
   document.querySelector('#app').innerHTML = `
-    <header class="topbar sticky"><button class="back" onclick="saveAndBack()">‹</button><div><div class="brand">DI-MOND</div><div class="subbrand">${esc(d.type)}</div></div><button class="save-top" onclick="saveDraft()">Save</button></header>
+    <header class="topbar sticky"><button class="back" onclick="saveAndBack()">‹</button><div><div class="brand">DI-MOND</div><div class="subbrand">${esc(d.type)}</div></div><button class="save-top" onclick="saveIncomplete()">Save as Incomplete</button></header>
     <main class="wrap form-wrap">
       <section class="card header-card">
         <div class="form-grid">
@@ -224,9 +219,8 @@ function renderForm(){
         <label class="block">Quality Inspector Signature<input data-field="signature" value="${esc(d.signature)}" placeholder="Type full name"></label>
       </section>
       <div class="actions">
-        <button class="big" onclick="saveDraft(true)">Save Incomplete</button>
-        <button class="big danger-outline" onclick="deleteDraft()">Delete Draft</button>
-        <button class="big primary" onclick="completeQC()">Complete QC / Create PDF</button>
+        <button class="big" onclick="saveIncomplete()">Save as Incomplete</button>
+        <button class="big primary" onclick="completeQC()">Save to OneDrive</button>
       </div>
     </main>`;
   bindInputs();
@@ -247,6 +241,12 @@ function applyInitial(key){
   if(!d.inspectorInitials.trim()){ alert('Enter Inspector Initials at the top first.'); return; }
   d.initials[key]=d.inspectorInitials.toUpperCase();
   saveState(); renderForm();
+}
+function saveIncomplete(collectFields=true){
+  if(collectFields) collect();
+  saveState();
+  preparedPdf=null;
+  showDashboard();
 }
 function saveDraft(showMsg=false){ collect(); saveState(); if(showMsg) alert('Saved as incomplete on this iPad.'); }
 function saveAndBack(){ collect(); saveState(); showDashboard(); }
@@ -296,11 +296,9 @@ function showPrintView(d){
   const sections=FORMS[d.type];
   document.querySelector('#app').innerHTML=`
   <div class="print-actions no-print">
-    <button onclick="renderForm()">Back to QC</button>
-    <div class="save-guide"><b>Manual saving:</b> Choose Save PDF and select a OneDrive folder on your computer. On iPad, choose Share → Save to Files → OneDrive. If the PDF downloads, upload it to your chosen OneDrive folder. Confirm below only after saving.</div>
-    <button onclick="window.print()">Print / Save PDF</button>
-    <button id="save-pdf" class="primary" disabled onclick="saveCompletedPdf()">Save PDF — Choose Folder</button>
-    <button onclick="markFiled()">I Saved It to OneDrive</button>
+    <button onclick="saveIncomplete(false)">Save as Incomplete</button>
+    <button id="save-pdf" class="primary" disabled onclick="saveCompletedPdf()">Save to OneDrive</button>
+    <div class="save-guide">Tap <b>Save to OneDrive</b>, then <b>Save to Files → OneDrive</b>. Choose the folder and filename, then tap Save.</div>
     <div id="submit-status" class="submit-status"></div>
   </div>
   <article class="pdf-sheet">
