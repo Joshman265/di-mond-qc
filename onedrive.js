@@ -150,18 +150,35 @@ function validPdfName(value){
   return name;
 }
 async function uploadPdfToFolder(folder,name,blob,replace=false,onProgress=()=>{}){
-  // Upload sessions enforce the conflict choice, including changes by the other iPad.
+  if(!blob || !blob.size)throw new Error('The PDF is empty. Please recreate it.');
+  const target='https://graph.microsoft.com/v1.0/'+driveFolderPath(folder)+':/'+encodeURIComponent(name)+':/content';
+  // QC PDFs are small. A direct upload avoids unnecessary upload-session creation,
+  // which can fail on certain shared OneDrive / SharePoint folder configurations.
+  if(blob.size<=4*1024*1024){
+    const token=await driveToken();
+    if(!token)throw new Error('Sign in to continue saving.');
+    const response=await fetch(target,{method:'PUT',cache:'no-store',headers:{
+      Authorization:'Bearer '+token,'Content-Type':'application/pdf',
+      ...(!replace?{'If-None-Match':'*'}:{})
+    },body:blob});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok){
+      if(response.status===412||response.status===409)throw new Error('A PDF with this name already exists. Refresh the folder and choose whether to replace it.');
+      throw new Error('OneDrive upload failed (HTTP '+response.status+', '+(data.error?.code||'unknown')+'): '+(data.error?.message||'Please verify write access to this folder.'));
+    }
+    if(!data.id||!data.file)throw new Error('OneDrive did not confirm the saved PDF. Check the folder before retrying.');
+    onProgress(100);
+    return data;
+  }
   const session=await driveRequest(driveFolderPath(folder)+':/'+encodeURIComponent(name)+':/createUploadSession',{
     method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item:{name,'@microsoft.graph.conflictBehavior':replace?'replace':'fail'}})});
   if(!session.uploadUrl||new URL(session.uploadUrl).protocol!=='https:')throw new Error('OneDrive did not create an upload session.');
   const chunkSize=10*320*1024;
   for(let offset=0;offset<blob.size;offset+=chunkSize){
     const end=Math.min(offset+chunkSize,blob.size);
-    // The upload URL is preauthenticated; never attach the Microsoft bearer token.
-    const response=await fetch(session.uploadUrl,{method:'PUT',headers:{'Content-Type':'application/octet-stream',
-      'Content-Range':`bytes ${offset}-${end-1}/${blob.size}`},body:blob.slice(offset,end)});
+    const response=await fetch(session.uploadUrl,{method:'PUT',headers:{'Content-Range':`bytes ${offset}-${end-1}/${blob.size}`},body:blob.slice(offset,end)});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error?.message||'Upload failed ('+response.status+').');
+    if(!response.ok)throw new Error('OneDrive upload failed (HTTP '+response.status+'): '+(data.error?.message||'Unknown error'));
     onProgress(Math.round(end/blob.size*100));
     if(end===blob.size){
       if((response.status!==200&&response.status!==201)||!data.id||!data.file)throw new Error('OneDrive has not confirmed the saved PDF.');
@@ -169,7 +186,7 @@ async function uploadPdfToFolder(folder,name,blob,replace=false,onProgress=()=>{
     }
     if(response.status!==202)throw new Error('Unexpected OneDrive upload response.');
   }
-  throw new Error('The PDF is empty. Please recreate it.');
+  throw new Error('The PDF upload did not complete.');
 }
 async function uploadSelectedPdf(){
   const picker=drivePicker;if(!picker||picker.busy||savingPdf)return;
