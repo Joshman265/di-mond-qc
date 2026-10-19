@@ -89,18 +89,20 @@ async function publishSharedQC(d,status='draft'){
 function validSharedRecord(r){
   return r?.schema===1 && /^qc_[a-zA-Z0-9_]+$/.test(r.documentId) && /^qc_[a-zA-Z0-9_]+$/.test(r.revision)
     && (r.parentRevision===null||/^qc_[a-zA-Z0-9_]+$/.test(r.parentRevision))
-    && ['draft','filed'].includes(r.status) && r.data && ['317-mainline','317-mounting','195-mainline'].includes(r.data.area)
+    && ['draft','filed','deleted'].includes(r.status) && r.data && ['317-mainline','317-mounting','195-mainline'].includes(r.data.area)
     && (r.data.area==='195-mainline'||r.data.type===(r.data.area==='317-mounting'?'Mounting Bay QC':'Mainline QC'))
     && (r.status!=='draft'||(r.data.initials&&typeof r.data.initials==='object'));
 }
 function mergeSharedRecords(records){
+  const deletedDocuments=new Set(records.filter(r=>r.status==='deleted').map(r=>r.documentId));
   const parents=new Set(records.filter(r=>r.parentRevision).map(r=>r.documentId+':'+r.parentRevision));
   const heads=records.filter(r=>!parents.has(r.documentId+':'+r.revision));
   const pending=[...state.drafts.map(d=>({d,status:'draft'})),...state.filed.map(d=>({d,status:'filed'}))]
-    .filter(({d})=>d._dirty||!d._sharedRevision);
+    .filter(({d,status})=>(status!=='draft'||!deletedDocuments.has(documentIdOf(d)))&&(d._dirty||!d._sharedRevision));
   const drafts=[],filed=[];
   for(const {d,status} of pending)(status==='draft'?drafts:filed).push(d);
   for(const r of heads){
+    if(r.status==='deleted'||r.status==='draft'&&deletedDocuments.has(r.documentId))continue;
     if(pending.some(({d})=>documentIdOf(d)===r.documentId&&d._sharedRevision===r.revision))continue;
     const d={...r.data,id:'shared_'+r.revision,_documentId:r.documentId,_sharedRevision:r.revision,_dirty:false,
       _savedBy:r.savedBy,_savedAt:r.savedAt};
@@ -167,4 +169,5 @@ async function openFiled(id){
 window.addEventListener('online',()=>{if(!currentId)refreshSharedQC();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();});
 setInterval(()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();},60000);
+
 

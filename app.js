@@ -126,8 +126,27 @@ function renderDrafts(drafts){
   if(!drafts.length)return '<div class="empty">No incomplete QC sheets in this area.</div>';
   return drafts.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(d=>{
     const progress=FORMS[d.type]?draftProgress(d):0;
-    return `<button class="draft-card" onclick="openDraft('${jsq(d.id)}')"><div><div class="draft-title">${esc(d.workOrder||d.boxSerial||'Untitled QC')}</div><div class="draft-meta">${progress}% initialled${d._savedBy?' · '+esc(d._savedBy):''}${d._savedAt?' · '+new Date(d._savedAt).toLocaleString():''}</div>${d._dirty||!d._sharedRevision?'<div class="draft-meta">Changes saved on this device · use Save as Incomplete to share</div>':''}${d._conflict?'<div class="draft-meta conflict">Concurrent version — compare both sheets before continuing</div>':''}</div><div class="chev">›</div></button>`;
+    return `<div style="display:flex;gap:10px;align-items:stretch"><button style="flex:1;min-width:0" class="draft-card" onclick="openDraft('${jsq(d.id)}')"><div><div class="draft-title">${esc(d.workOrder||d.boxSerial||'Untitled QC')}</div><div class="draft-meta">${progress}% initialled${d._savedBy?' · '+esc(d._savedBy):''}${d._savedAt?' · '+new Date(d._savedAt).toLocaleString():''}</div>${d._dirty||!d._sharedRevision?'<div class="draft-meta">Changes saved on this device · use Save as Incomplete to share</div>':''}${d._conflict?'<div class="draft-meta conflict">Concurrent version — compare both sheets before continuing</div>':''}</div><div class="chev">›</div></button><button class="big danger-outline" aria-label="Delete incomplete QC" onclick="deleteIncomplete(\'${jsq(d.id)}\',this)">Delete</button></div>`;
   }).join('');
+}
+
+async function deleteIncomplete(id,button){
+  const d=state.drafts.find(sheet=>sheet.id===id);
+  if(!d)return;
+  if(!confirm('Delete incomplete QC "'+(d.workOrder||d.boxSerial||'Untitled QC')+'"? This removes it from all devices after they refresh. Filed PDFs will be kept.'))return;
+  if(button)button.disabled=true;
+  try{
+    // Queue the deletion before removing the local copy, so a failed upload
+    // can be retried by Refresh without losing the sheet.
+    await publishSharedQC({...d,_dirty:true},'deleted');
+    const documentId=documentIdOf(d);
+    state.drafts=state.drafts.filter(sheet=>documentIdOf(sheet)!==documentId);
+    saveState();
+    sharedMessage='Incomplete QC deleted. Other devices will update when they refresh.';
+    renderNavigation();
+  }catch(e){
+    alert('Deletion has not been confirmed: '+e.message+' The sheet is still kept on this device. Tap Refresh to retry the pending deletion.');
+  }finally{if(button?.isConnected)button.disabled=false;}
 }
 
 function draftProgress(d){
@@ -351,4 +370,5 @@ window.addEventListener('load',async()=>{
     else sessionStorage.removeItem(DRIVE_RESUME_KEY);
   }
 });
+
 
