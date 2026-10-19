@@ -14,12 +14,37 @@ function sharedNotice(){
 async function sharedFolder(){
   if(!driveAccount)throw new Error('Connect OneDrive to share this sheet.');
   if(!sharedFolderPromise)sharedFolderPromise=(async()=>{
-    const item=await driveRequest('shares/'+shareToken(ONE_DRIVE_CONFIG.sharedFolderUrl)+'/driveItem',{headers:{Prefer:'redeemSharingLink'}});
+    let item;
+    try{
+      item=await driveRequest('shares/'+shareToken(ONE_DRIVE_CONFIG.sharedFolderUrl)+'/driveItem',{headers:{Prefer:'redeemSharingLink'}});
+    }catch(e){throw new Error('Could not open the shared OneDrive root: '+e.message);}
     const root=folderReference(item), path=driveFolderPath(root);
-    try{return folderReference(await driveRequest(path+':/'+encodeURIComponent(SHARED_QC_FOLDER)),root.driveId);}
-    catch(e){if(e.status!==404)throw e;}
-    try{return folderReference(await driveRequest(path+'/children',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:SHARED_QC_FOLDER,folder:{},'@microsoft.graph.conflictBehavior':'fail'})}),root.driveId);}
-    catch(e){if(e.status!==409)throw e;return folderReference(await driveRequest(path+':/'+encodeURIComponent(SHARED_QC_FOLDER)),root.driveId);}
+    // Resolve children by their IDs, as the PDF picker does. Some shared drives
+    // do not resolve item-relative folder paths consistently.
+    async function findFolder(){
+      let next=path+'/children?$select=id,name,folder,parentReference,remoteItem&$top=200';
+      while(next){
+        const page=await driveRequest(next);
+        const match=(page.value||[]).find(child=>child.name?.toLowerCase()===SHARED_QC_FOLDER.toLowerCase());
+        if(match)return folderReference(match,root.driveId);
+        next=page['@odata.nextLink'];
+      }
+      return null;
+    }
+    try{
+      const existing=await findFolder();
+      if(existing)return existing;
+      try{
+        const created=await driveRequest(path+'/children',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({name:SHARED_QC_FOLDER,folder:{},'@microsoft.graph.conflictBehavior':'fail'})});
+        return folderReference(created,root.driveId);
+      }catch(e){
+        if(e.status!==409)throw e;
+        const existing=await findFolder();
+        if(existing)return existing;
+        throw new Error('The shared QC folder was created by another device but is not visible yet. Tap Refresh again.');
+      }
+    }catch(e){throw new Error('Could not find or create '+SHARED_QC_FOLDER+': '+e.message);}
   })().catch(e=>{sharedFolderPromise=null;throw e;});
   return sharedFolderPromise;
 }
@@ -142,3 +167,4 @@ async function openFiled(id){
 window.addEventListener('online',()=>{if(!currentId)refreshSharedQC();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();});
 setInterval(()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();},60000);
+
