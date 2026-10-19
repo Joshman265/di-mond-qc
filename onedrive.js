@@ -55,7 +55,7 @@ async function driveRequest(path,options={}){
     let message=data.error?.message||'OneDrive request failed ('+response.status+').';
     if(response.status===403)message='This Microsoft account cannot access or edit the shared folder. Check its sharing permissions. '+message;
     if(response.status===401)message='Microsoft sign-in expired. Use Change account on the home screen to reconnect.';
-    throw new Error(message);
+    const error=new Error(message);error.status=response.status;throw error;
   }
   return data;
 }
@@ -203,13 +203,16 @@ async function uploadSelectedPdf(){
     const folder=picker.stack[picker.stack.length-1];
     const saved=await uploadPdfToFolder(folder,name,picker.pdf.blob,Boolean(existing),percent=>{message.textContent='Uploading PDF… '+percent+'%';});
     // Persist the success record before changing the screen; never file on a failed upload.
-    const record={id:draft.id,type:draft.type,workOrder:draft.workOrder,boxSerial:draft.boxSerial,filedAt:Date.now(),
+    const record={...JSON.parse(JSON.stringify(draft)),area:areaOf(draft),_dirty:true,filedAt:Date.now(),
       savedPath:picker.stack.map(f=>f.name).join(' / ')+' / '+saved.name,driveItemId:saved.id,driveId:folder.driveId,savedBy:driveAccount.username};
     const next={...state,filed:[...state.filed,record],drafts:state.drafts.filter(d=>d.id!==draft.id)};
     localStorage.setItem(STORAGE_KEY,JSON.stringify(next));state=next;
     document.querySelector('#drive-picker').remove();drivePicker=null;preparedPdf=null;
     sessionStorage.removeItem(DRIVE_RESUME_KEY);
-    showDashboard();alert('Saved to OneDrive:\n'+record.savedPath);
+    let sharedWarning='';
+    try{await publishSharedQC(record,'filed');}
+    catch(e){sharedWarning='\n\nThe PDF is saved, but the shared filed list update is pending: '+e.message+' Keep this device’s app data and use Refresh to retry.';}
+    showDashboard();alert('Saved to OneDrive:\n'+record.savedPath+sharedWarning);
   }catch(e){
     message.textContent='Not filed: '+e.message+' Your QC remains in Incomplete QC. If the connection dropped, check this folder before retrying.';
   }finally{
@@ -217,3 +220,4 @@ async function uploadSelectedPdf(){
     if(drivePicker===picker){picker.busy=false;document.querySelectorAll('#drive-picker button, #drive-picker input').forEach(el=>el.disabled=false);document.querySelector('#drive-up').disabled=picker.stack.length===1;}
   }
 }
+

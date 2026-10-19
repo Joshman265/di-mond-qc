@@ -1,0 +1,53 @@
+DI-MOND QC — Location pages and shared sheets update (v17)
+
+INSTALL
+1. Unzip this package.
+2. Open the existing Joshman265/di-mond-qc GitHub repository.
+3. Choose Add file > Upload files.
+4. Upload these FIVE files to the repository's top level, replacing the existing files where prompted:
+   app.js
+   index.html
+   onedrive.js
+   service-worker.js
+   shared-qc.js (new)
+5. Commit the upload and wait for GitHub Pages to finish publishing.
+6. Fully close and reopen the QC app on each device. If the old screen still appears, first open the site in Safari and reload it, then reopen the home-screen app.
+
+Keep the existing msal-browser.min.js, manifest.webmanifest, icon.svg, and all other existing repository files. This package updates an existing installation; it is not a standalone replacement for the entire repository. Do not clear Safari website data or delete local QC drafts to refresh the app.
+
+NEW SCREENS
+Home > 195 > Mainline QC (new sheet coming soon)
+Home > 317 > Mainline QC
+Home > 317 > Mounting QC
+Each QC area has its own Incomplete QC and Filed QC lists.
+
+ONE DRIVE SUBMISSION IS THE SAME
+Save to OneDrive > choose folder and PDF filename > Save here.
+The current inspection items, PDF layout, folder picker, filename controls, replacement confirmation, and PDF upload transport are preserved.
+The PDF is marked filed only after OneDrive confirms the PDF upload.
+If updating the shared filed list fails after a successful PDF upload, the PDF remains filed locally and Refresh retries the shared list update.
+The future 195 form will use this same submission process when it is added.
+
+SHARED INCOMPLETE AND FILED SHEETS
+Connect OneDrive on each device with a Microsoft work account that can edit the existing shared QC folder.
+Save as Incomplete makes a sheet available on other devices. Edits also autosave locally while the form is open; those ongoing local edits are shared when you press Save as Incomplete or the form's back button.
+On the second device, open the matching area and tap Refresh to see the saved sheet. Lists also refresh when reopening the app and every minute while the list is visible.
+If offline, the sheet stays on that device and a saved queue retries after reconnection. Wait for the shared-save confirmation or use Refresh successfully before switching devices.
+Existing device-only drafts and filed entries migrate when that device first opens the updated app while signed in and online. Open the updated app on each old device to bring its saved entries across. Older filed entries without a PDF identifier show the saved folder path; their PDFs can still be opened directly in OneDrive.
+Shared QC versions are stored in a new '_DI-MOND QC App' folder inside the existing shared OneDrive folder. Keep that folder: it contains the editable sheets and shared filed history. Your PDF destination remains your choice.
+If two devices edit the same sheet simultaneously, both versions remain available and are labelled as concurrent versions. Compare them before continuing.
+
+195 MAINLINE
+The 195 section is ready, with its lists and a disabled 'coming soon' new-sheet button. No placeholder checklist is used. Its actual Excel checklist still needs to be supplied and implemented.
+
+VALIDATION
+Automated simulated-device tests passed for navigation, area isolation, cross-device resume, preservation of concurrent edits, offline retry after reload, filed-list retry, failed PDF upload, legacy migration, and protection of the active form.
+The current checklist definitions, PDF generation and layout, completion checks, Microsoft configuration, folder picker, and PDF upload transport were compared with the current GitHub source and preserved byte-for-byte.
+A live Microsoft sign-in and two-device test is still required after publishing. Browser visual testing was unavailable in the build environment.
+
+SUGGESTED FIRST LIVE CHECK
+Create a test incomplete sheet in 317 Mainline on device 1. Save as Incomplete.
+On device 2, sign in, open 317 Mainline and Refresh. Continue the same sheet.
+Confirm that it does not appear in 317 Mounting or 195.
+Finish a test sheet and submit using your usual folder and filename choice.
+Refresh the matching area on both devices and open the filed PDF.

@@ -75,42 +75,58 @@ function uid(){ return 'qc_' + Date.now() + '_' + Math.random().toString(36).sli
 function esc(s=''){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
 function formatInspectionItem(s=''){ return esc(s).replace(/;\s*/g,';<br>'); }
 
+const QC_AREAS={
+  '317-mainline':{location:'317',title:'Mainline QC',type:'Mainline QC'},
+  '317-mounting':{location:'317',title:'Mounting QC',type:'Mounting Bay QC'},
+  '195-mainline':{location:'195',title:'Mainline QC',type:null}
+};
+let currentArea=null;
+let navigationPage='home';
+function navigationHeader(back){
+  return `<header class="topbar">${back?`<button class="back" aria-label="Back" onclick="${back}">‹</button>`:''}<div><div class="brand">DI-MOND</div><div class="subbrand">QUALITY CONTROL</div></div></header>`;
+}
+function showHome(){currentId=null;currentArea=null;navigationPage='home';renderNavigation();refreshSharedQC();}
+function chooseLocation(location){
+  if(location==='195'){openArea('195-mainline');return;}
+  currentId=null;currentArea=null;navigationPage='317';renderNavigation();
+}
+function openArea(area){
+  if(!QC_AREAS[area])return;
+  currentId=null;currentArea=area;navigationPage='area';renderNavigation();refreshSharedQC();
+}
 function showDashboard(){
-  currentId = null;
-  document.querySelector('#app').innerHTML = `
-    <header class="topbar"><div class="brand">DI-MOND</div><div class="subbrand">QUALITY CONTROL</div></header>
+  currentId=null;
+  navigationPage=currentArea?'area':'home';renderNavigation();refreshSharedQC();
+}
+function renderNavigation(){
+  const app=document.querySelector('#app');
+  if(navigationPage==='home'){
+    app.innerHTML=navigationHeader()+`<main class="wrap">${driveConnectionHtml()}<section class="hero"><p class="eyebrow">QUALITY CONTROL</p><h1>Select your location</h1><p>Choose the facility for your inspection.</p><div class="new-grid location-grid"><button class="big location" onclick="chooseLocation('195')">195<span>Mainline QC</span></button><button class="big primary location" onclick="chooseLocation('317')">317<span>Mainline &amp; Mounting QC</span></button></div></section><p id="shared-status" class="hint" role="status">${esc(sharedMessage)}</p></main>`;
+    return;
+  }
+  if(navigationPage==='317'){
+    app.innerHTML=navigationHeader('showHome()')+`<main class="wrap"><section class="hero"><p class="eyebrow">LOCATION 317</p><h1>Select QC area</h1><div class="new-grid"><button class="big primary" onclick="openArea('317-mainline')">Mainline QC</button><button class="big" onclick="openArea('317-mounting')">Mounting QC</button></div></section></main>`;
+    return;
+  }
+  const area=QC_AREAS[currentArea];if(!area){showHome();return;}
+  const drafts=state.drafts.filter(d=>areaOf(d)===currentArea);
+  const filed=state.filed.filter(d=>areaOf(d)===currentArea).sort((a,b)=>(b.filedAt||0)-(a.filedAt||0));
+  app.innerHTML=navigationHeader(area.location==='317'?"chooseLocation('317')":'showHome()')+`
     <main class="wrap">
       ${driveConnectionHtml()}
-      <section class="hero">
-        <h1>Quality Control</h1>
-        <p>Start a new inspection or continue an unfinished QC.</p>
-        <div class="new-grid">
-          <button class="big primary" onclick="newForm('Mainline QC')">New Mainline QC</button>
-          <button class="big" onclick="newForm('Mounting Bay QC')">New Mounting Bay QC</button>
-        </div>
-      </section>
-      <section>
-        <div class="section-head"><h2>Incomplete QC</h2><span class="count">${state.drafts.length}</span></div>
-        <div class="drafts">${renderDrafts()}</div>
-      </section>
-      <section class="filed">
-        <div class="section-head"><h2>Filed on this iPad</h2><span class="count">${state.filed.length}</span></div>
-        ${state.filed.length ? state.filed.slice().reverse().slice(0,10).map(f=>`
-          <div class="filed-row"><div><b>${esc(f.workOrder||f.boxSerial||'QC')}</b><span>${esc(f.type)}${f.lost?' · LOST QC':''}</span>${f.savedPath?`<span>${esc(f.savedPath)}</span>`:''}</div><small>${new Date(f.filedAt).toLocaleString()}</small></div>`).join('') :
-          '<div class="empty">No completed QC has been marked as filed on this iPad yet.</div>'}
-      </section>
+      <section class="hero"><p class="eyebrow">LOCATION ${area.location}</p><h1>${area.title}</h1>
+      ${area.type?`<p>Start an inspection or continue a saved sheet.</p><button class="big primary" onclick="newForm('${area.type}')">Start new ${area.title}</button>`:`<p>The 195 Mainline QC sheet is coming soon.</p><button class="big" disabled>Start new Mainline QC — coming soon</button>`}</section>
+      <div class="shared-toolbar"><p id="shared-status" class="hint" role="status">${esc(sharedMessage)}</p><button class="big" onclick="refreshSharedQC()">Refresh</button></div>
+      <section><div class="section-head"><h2>Incomplete QC</h2><span class="count">${drafts.length}</span></div><div class="drafts">${renderDrafts(drafts)}</div></section>
+      <section class="filed"><div class="section-head"><h2>Filed QC</h2><span class="count">${filed.length}</span></div>
+      ${filed.length?filed.map(f=>`<button class="filed-row filed-button" onclick="openFiled('${jsq(f.id)}')"><div><b>${esc(f.workOrder||f.boxSerial||'QC')}</b><span>${esc(f.type)} · ${new Date(f.filedAt).toLocaleString()}</span>${f.savedPath?`<span>${esc(f.savedPath)}</span>`:''}${f._dirty||!f._sharedRevision?'<span>PDF filed · shared list update pending</span>':''}${f._conflict?'<span>Another saved version also exists</span>':''}</div><span>Open PDF ›</span></button>`).join(''):'<div class="empty">No filed QC sheets in this area.</div>'}</section>
     </main>`;
 }
-
-function renderDrafts(){
-  if(!state.drafts.length) return '<div class="empty">No incomplete QC sheets.</div>';
-  return state.drafts.slice().reverse().map(d=>{
-    const progress = draftProgress(d);
-    return `<button class="draft-card" onclick="openDraft('${d.id}')">
-      <div><div class="draft-title">${esc(d.workOrder || d.boxSerial || 'Untitled QC')}</div>
-      <div class="draft-meta">${esc(d.type)} · ${progress}% initialled</div></div>
-      <div class="chev">›</div>
-    </button>`;
+function renderDrafts(drafts){
+  if(!drafts.length)return '<div class="empty">No incomplete QC sheets in this area.</div>';
+  return drafts.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).map(d=>{
+    const progress=FORMS[d.type]?draftProgress(d):0;
+    return `<button class="draft-card" onclick="openDraft('${jsq(d.id)}')"><div><div class="draft-title">${esc(d.workOrder||d.boxSerial||'Untitled QC')}</div><div class="draft-meta">${progress}% initialled${d._savedBy?' · '+esc(d._savedBy):''}${d._savedAt?' · '+new Date(d._savedAt).toLocaleString():''}</div>${d._dirty||!d._sharedRevision?'<div class="draft-meta">Changes saved on this device · use Save as Incomplete to share</div>':''}${d._conflict?'<div class="draft-meta conflict">Concurrent version — compare both sheets before continuing</div>':''}</div><div class="chev">›</div></button>`;
   }).join('');
 }
 
@@ -122,8 +138,9 @@ function draftProgress(d){
 }
 
 function newForm(type){
+  if(!currentArea||QC_AREAS[currentArea]?.type!==type)return;
   const draft = {
-    id: uid(), type, createdAt: Date.now(), updatedAt: Date.now(),
+    id: uid(), type, area:currentArea, _dirty:true, createdAt: Date.now(), updatedAt: Date.now(),
     date: new Date().toISOString().slice(0,10),
     workOrder:'', boxSerial:'', chassisSerial:'', inspectorInitials:'',
     reviewedWorkOrder:'', reviewedDrawing:'',
@@ -135,10 +152,14 @@ function newForm(type){
   state.drafts.push(draft); saveState(); currentId = draft.id; renderForm();
 }
 function openDraft(id){
-  currentId=id;
+  const selected=state.drafts.find(d=>d.id===id);
+  if(!selected)return;
+  if(!FORMS[selected.type]||areaOf(selected)==='195-mainline'){alert('The 195 QC sheet is not available yet.');return;}
+  currentId=id;currentArea=areaOf(selected);
   const d=getDraft();
   if(d && d.type==='Mounting Bay QC' && !String(d.workOrder||'').trim() && String(d.boxSerial||'').trim()){
     d.workOrder=d.boxSerial;
+    d._dirty=true;
     saveState();
   }
   renderForm();
@@ -211,41 +232,53 @@ function jsq(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
 function bindInputs(){
   document.querySelectorAll('[data-field]').forEach(el=>{
-    el.addEventListener('input',()=>{ const d=getDraft(); d[el.dataset.field]=el.value; d.updatedAt=Date.now(); saveState(); });
+    el.addEventListener('input',()=>{ const d=getDraft(); d[el.dataset.field]=el.value; d._dirty=true; d.updatedAt=Date.now(); saveState(); });
   });
   document.querySelectorAll('[data-initial-key]').forEach(el=>{
-    el.addEventListener('input',()=>{ const d=getDraft(); d.initials[el.dataset.initialKey]=el.value.toUpperCase(); d.updatedAt=Date.now(); saveState(); });
+    el.addEventListener('input',()=>{ const d=getDraft(); d.initials[el.dataset.initialKey]=el.value.toUpperCase(); d._dirty=true; d.updatedAt=Date.now(); saveState(); });
   });
 }
 function applyInitial(key){
   const d=getDraft();
   if(!d.inspectorInitials.trim()){ alert('Enter Inspector Initials at the top first.'); return; }
-  d.initials[key]=d.inspectorInitials.toUpperCase();
+  d.initials[key]=d.inspectorInitials.toUpperCase();d._dirty=true;d.updatedAt=Date.now();
   saveState(); renderForm();
 }
-function saveIncomplete(collectFields=true){
-  if(collectFields) collect();
-  saveState();
-  preparedPdf=null;
-  showDashboard();
+let savingIncomplete=false;
+async function saveIncomplete(collectFields=true){
+  if(savingIncomplete)return;
+  savingIncomplete=true;
+  if(collectFields)collect();
+  const d=getDraft();
+  const controls=[...document.querySelectorAll('#app button:not(:disabled), #app input:not(:disabled), #app textarea:not(:disabled)')];
+  controls.forEach(el=>el.disabled=true);
+  try{
+    saveState();
+    if(d){await publishSharedQC(d);sharedMessage='Saved as incomplete. This sheet is available on other devices.';}
+    preparedPdf=null;showDashboard();
+  }catch(e){
+    alert('Saved on this device, but not yet shared: '+e.message+' Reconnect and use Save as Incomplete again before switching devices.');
+    sharedMessage='Saved on this device. Shared save pending; reconnect and tap Refresh before switching devices.';
+    preparedPdf=null;showDashboard();
+  }finally{controls.forEach(el=>{if(el.isConnected)el.disabled=false;});savingIncomplete=false;}
 }
-function saveDraft(showMsg=false){ collect(); saveState(); if(showMsg) alert('Saved as incomplete on this iPad.'); }
-function saveAndBack(){ collect(); saveState(); showDashboard(); }
+function saveDraft(showMsg=false){return saveIncomplete();}
+function saveAndBack(){return saveIncomplete();}
+
 function collect(){
   const d=getDraft();
   if(!d) return;
   document.querySelectorAll('[data-field]').forEach(el=>{
+    if(d[el.dataset.field]!==el.value)d._dirty=true;
     d[el.dataset.field]=el.value;
   });
   document.querySelectorAll('[data-initial-key]').forEach(el=>{
-    d.initials[el.dataset.initialKey]=(el.value||'').trim().toUpperCase();
+    const value=(el.value||'').trim().toUpperCase();
+    if(d.initials[el.dataset.initialKey]!==value)d._dirty=true;
+    d.initials[el.dataset.initialKey]=value;
   });
   d.updatedAt=Date.now();
   saveState();
-}
-function deleteDraft(){
-  if(!confirm('Delete this incomplete QC?')) return;
-  state.drafts=state.drafts.filter(d=>d.id!==currentId); saveState(); showDashboard();
 }
 
 function completeQC(){
@@ -310,11 +343,12 @@ window.addEventListener('load',async()=>{
   localStorage.removeItem('dimond-qc-pending-submit');
   driveReady=initializeOneDrive();
   await driveReady;
-  showDashboard();
+  showHome();
   const resumeId=sessionStorage.getItem(DRIVE_RESUME_KEY);
   if(resumeId&&driveAccount&&!driveInitError){
     const draft=state.drafts.find(d=>d.id===resumeId);
-    if(draft){currentId=resumeId;showPrintView(draft,true);}
+    if(draft){currentId=resumeId;currentArea=areaOf(draft);showPrintView(draft,true);}
     else sessionStorage.removeItem(DRIVE_RESUME_KEY);
   }
 });
+

@@ -34,11 +34,15 @@ label{font-weight:750;font-size:13px;color:#333}input,textarea{width:100%;margin
 
 .drive-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
 .drive-dialog{background:#fff;color:#111;border-radius:16px;width:min(680px,100%);max-height:90dvh;overflow:auto;padding:22px}.drive-dialog h2{margin:0 0 8px}.drive-dialog p{overflow-wrap:anywhere}.drive-nav{display:flex;gap:12px;align-items:center;margin-bottom:12px}.drive-nav b{overflow-wrap:anywhere;min-width:0}.drive-dialog button{border:1px solid #bbb;background:#fff;border-radius:10px;padding:12px;font-weight:750}.drive-items{height:240px;overflow:auto;border:1px solid #ccc;border-radius:10px;padding:8px;margin-bottom:16px}.drive-items button{display:block;width:100%;text-align:left;margin-bottom:6px;overflow-wrap:anywhere}.drive-buttons{display:flex;gap:12px;justify-content:flex-end}.drive-dialog button:disabled,button:disabled{opacity:.5}#drive-message{font-size:14px;min-height:24px}body:has(.drive-overlay){overflow:hidden}
+
+.eyebrow{font-size:12px;font-weight:850;letter-spacing:2px;color:#666;margin:16px 0 8px}.location{font-size:56px;min-height:180px}.location span{display:block;font-size:16px;margin-top:12px}.shared-toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:22px 0}.shared-toolbar p{margin:0;line-height:1.5}.shared-toolbar button{min-height:42px;white-space:nowrap}.filed-button{width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;gap:16px}.filed-button>div{min-width:0;overflow-wrap:anywhere}.filed-button>span{white-space:nowrap;font-weight:750}.conflict{color:#9b4a00;font-weight:750}
 </style>
 </head>
 <body><div id="app"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="msal-browser.min.js?v=16"></script>
-<script src="onedrive.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="msal-browser.min.js?v=17"></script>
+<script src="onedrive.js?v=17"></script>
+<script src="shared-qc.js?v=17"></script>
+<script src="app.js?v=17"></script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{});}</script></body></html>
+
