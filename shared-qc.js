@@ -134,7 +134,7 @@ async function refreshSharedQC(){
         if(!item.file||!/^qc_[a-zA-Z0-9_]+\.json$/.test(item.name))return null;
         const cached=sharedVersionCache.get(item.id);
         if(cached&&cached.eTag===item.eTag)return cached.record;
-        const info=await driveRequest('drives/'+encodeURIComponent(folder.driveId)+'/items/'+encodeURIComponent(item.id)+'?$select=id,@microsoft.graph.downloadUrl');
+        const info=await driveRequest('drives/'+encodeURIComponent(folder.driveId)+'/items/'+encodeURIComponent(item.id));
         const url=info['@microsoft.graph.downloadUrl'];
         if(!url||new URL(url).protocol!=='https:')throw new Error('OneDrive did not return a QC download link.');
         const response=await fetch(url,{cache:'no-store',credentials:'omit'});
@@ -169,5 +169,6 @@ async function openFiled(id){
 window.addEventListener('online',()=>{if(!currentId)refreshSharedQC();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();});
 setInterval(()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();},60000);
+
 
 
