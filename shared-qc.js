@@ -1,6 +1,6 @@
 // Saved QC versions live alongside the PDFs in the existing shared OneDrive.
 // Each save writes a new immutable version. Concurrent edits retain both heads.
-const SHARED_QC_FOLDER = '_DI-MOND QC App';
+const SHARED_QC_FOLDER = 'QC App Data (DO NOT TOUCH)';
 let sharedFolderPromise=null, sharedRefreshPromise=null, sharedWrite=Promise.resolve();
 let sharedMessage='Connect OneDrive to load sheets saved on other devices.';
 const sharedVersionCache=new Map();
@@ -169,6 +169,7 @@ async function openFiled(id){
 window.addEventListener('online',()=>{if(!currentId)refreshSharedQC();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();});
 setInterval(()=>{if(document.visibilityState==='visible'&&!currentId)refreshSharedQC();},60000);
+
 
 
 
